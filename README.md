@@ -20,7 +20,7 @@ submissions/my-launch-video/
 |---|---|---|
 | `video.mp4` | 必須 | MP4。16:9、60秒以内、50MB以内 |
 | `prompt.txt` | 必須 | その動画を作った指示文 |
-| `meta.json` | 必須 | タイトル、説明、投稿者名 |
+| `meta.json` | 必須 | タイトル、説明、投稿者名。X とサイト URL は任意 |
 | `logo.png` | 任意 | 投稿者のロゴ。PNG |
 
 `meta.json` の形:
@@ -29,9 +29,13 @@ submissions/my-launch-video/
 {
   "title": "動画のタイトル",
   "description": "詳細ページの説明に出す文章",
-  "authorName": "投稿者名"
+  "authorName": "投稿者名",
+  "x": "https://x.com/example",
+  "website": "https://example.com"
 }
 ```
+
+`x` と `website` は空でも書けます。書いたときだけ、公開後の動画にリンクが出ます。
 
 メールアドレスは書きません。掲載した動画は X で告知します。
 

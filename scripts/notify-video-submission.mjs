@@ -98,6 +98,8 @@ for (const folder of folders) {
     title: readField(meta, ["title"]) || folder.split("/")[1],
     description: readField(meta, ["description"]),
     author: readField(meta, ["authorName"]),
+    x: readField(meta, ["x"]),
+    website: readField(meta, ["website"]),
     hasVideo: paths.includes(`${folder}/video.mp4`),
     hasPrompt: paths.includes(`${folder}/prompt.txt`),
     hasLogo: paths.includes(`${folder}/logo.png`),
@@ -120,6 +122,8 @@ if (entries.length === 0) {
     lines.push(`--- ${entry.folder} ---`);
     lines.push(`タイトル: ${entry.title}`);
     if (entry.author) lines.push(`投稿者名: ${entry.author}`);
+    if (entry.x) lines.push(`X: ${entry.x}`);
+    if (entry.website) lines.push(`サイト: ${entry.website}`);
     lines.push(`動画: ${entry.hasVideo ? "あり" : "なし"}`);
     lines.push(`プロンプト: ${entry.hasPrompt ? "あり" : "なし"}`);
     lines.push(`ロゴ: ${entry.hasLogo ? "あり" : "なし"}`);

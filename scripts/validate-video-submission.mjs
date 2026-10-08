@@ -108,6 +108,21 @@ for (const folderName of folders) {
     if (typeof meta.email === "string" && meta.email.trim()) {
       fail(`${folderName} の meta.json にメールアドレスは書かないでください。`);
     }
+    if (meta.x != null && meta.x !== "") {
+      if (typeof meta.x !== "string" || !/^https:\/\/x\.com\/[A-Za-z0-9_]{1,15}$/.test(meta.x)) {
+        fail(`${folderName} の meta.json の x は https://x.com/ユーザー名 にしてください。`);
+      }
+    }
+    if (meta.website != null && meta.website !== "") {
+      try {
+        const site = new URL(meta.website);
+        if (site.protocol !== "https:" && site.protocol !== "http:") {
+          fail(`${folderName} の meta.json の website は http か https の URL にしてください。`);
+        }
+      } catch {
+        fail(`${folderName} の meta.json の website は http か https の URL にしてください。`);
+      }
+    }
   } catch (error) {
     if (error instanceof SyntaxError) fail(`${folderName} の meta.json が JSON ではありません。`);
   }
