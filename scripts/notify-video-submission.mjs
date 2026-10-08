@@ -68,7 +68,8 @@ async function readJsonAt(filePath) {
     .split("/")
     .map((part) => encodeURIComponent(part))
     .join("/");
-  const payload = await github(`/repos/${owner}/${repo}/contents/${encoded}?ref=${headSha}`);
+  const ref = encodeURIComponent(`refs/pull/${prNumber}/head`);
+  const payload = await github(`/repos/${owner}/${repo}/contents/${encoded}?ref=${ref}`);
   if (!payload.content) return null;
   return JSON.parse(Buffer.from(payload.content, "base64").toString("utf8"));
 }
