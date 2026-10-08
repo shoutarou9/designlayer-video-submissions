@@ -132,25 +132,41 @@ if (entries.length === 0) {
 }
 
 const text = lines.join("\n");
-const response = await fetch("https://api.resend.com/emails", {
-  method: "POST",
-  headers: {
-    Authorization: `Bearer ${resendKey}`,
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    from,
-    to: [notifyTo],
-    subject: `[DesignLayer] 動画の提出: ${prTitle}`,
-    text,
-    html: `<pre style="white-space:pre-wrap;font-family:inherit">${escapeHtml(text)}</pre>`,
-  }),
-});
+const subject = `[DesignLayer] 動画の提出: ${prTitle}`;
+const html = `<pre style="white-space:pre-wrap;font-family:inherit">${escapeHtml(text)}</pre>`;
+const resendTestFrom = "DesignLayer <onboarding@resend.dev>";
 
-if (!response.ok) {
-  console.error("メール送信に失敗しました", response.status, await response.text());
+async function sendEmail(fromAddress) {
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${resendKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: fromAddress,
+      to: [notifyTo],
+      subject,
+      text,
+      html,
+    }),
+  });
+  const body = await response.text();
+  return { ok: response.ok, status: response.status, body };
+}
+
+let sent = await sendEmail(from);
+if (!sent.ok && sent.status === 403 && sent.body.includes("domain is not verified")) {
+  console.error(
+    "送信元ドメインが Resend で未確認のため、確認用アドレスから送り直します。",
+  );
+  sent = await sendEmail(resendTestFrom);
+}
+
+if (!sent.ok) {
+  console.error("メール送信に失敗しました", sent.status, sent.body);
   process.exit(1);
 }
 
-const result = await response.json();
+const result = JSON.parse(sent.body);
 console.log("メールを送信しました", result.id, notifyTo);
