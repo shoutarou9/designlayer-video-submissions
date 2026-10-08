@@ -100,13 +100,13 @@ for (const folderName of folders) {
   const metaPath = path.join(folder, "meta.json");
   try {
     const meta = JSON.parse(readFileSync(metaPath, "utf8"));
-    for (const key of ["title", "description", "authorName", "email"]) {
+    for (const key of ["title", "description", "authorName"]) {
       if (typeof meta[key] !== "string" || !meta[key].trim()) {
         fail(`${folderName} の meta.json に ${key} を書いてください。`);
       }
     }
-    if (typeof meta.email === "string" && meta.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(meta.email.trim())) {
-      fail(`${folderName} のメールアドレスの形が正しくありません。`);
+    if (typeof meta.email === "string" && meta.email.trim()) {
+      fail(`${folderName} の meta.json にメールアドレスは書かないでください。`);
     }
   } catch (error) {
     if (error instanceof SyntaxError) fail(`${folderName} の meta.json が JSON ではありません。`);

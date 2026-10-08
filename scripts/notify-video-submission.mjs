@@ -98,7 +98,6 @@ for (const folder of folders) {
     title: readField(meta, ["title"]) || folder.split("/")[1],
     description: readField(meta, ["description"]),
     author: readField(meta, ["authorName"]),
-    email: readField(meta, ["email"]),
     hasVideo: paths.includes(`${folder}/video.mp4`),
     hasPrompt: paths.includes(`${folder}/prompt.txt`),
     hasLogo: paths.includes(`${folder}/logo.png`),
@@ -121,7 +120,6 @@ if (entries.length === 0) {
     lines.push(`--- ${entry.folder} ---`);
     lines.push(`タイトル: ${entry.title}`);
     if (entry.author) lines.push(`投稿者名: ${entry.author}`);
-    if (entry.email) lines.push(`メール: ${entry.email}`);
     lines.push(`動画: ${entry.hasVideo ? "あり" : "なし"}`);
     lines.push(`プロンプト: ${entry.hasPrompt ? "あり" : "なし"}`);
     lines.push(`ロゴ: ${entry.hasLogo ? "あり" : "なし"}`);
@@ -134,7 +132,6 @@ if (entries.length === 0) {
 }
 
 const text = lines.join("\n");
-const replyTo = entries.find((entry) => entry.email)?.email;
 const response = await fetch("https://api.resend.com/emails", {
   method: "POST",
   headers: {
@@ -144,7 +141,6 @@ const response = await fetch("https://api.resend.com/emails", {
   body: JSON.stringify({
     from,
     to: [notifyTo],
-    ...(replyTo ? { reply_to: replyTo } : {}),
     subject: `[DesignLayer] 動画の提出: ${prTitle}`,
     text,
     html: `<pre style="white-space:pre-wrap;font-family:inherit">${escapeHtml(text)}</pre>`,
