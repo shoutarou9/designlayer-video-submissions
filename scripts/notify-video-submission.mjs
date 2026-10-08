@@ -136,7 +136,7 @@ const subject = `[DesignLayer] 動画の提出: ${prTitle}`;
 const html = `<pre style="white-space:pre-wrap;font-family:inherit">${escapeHtml(text)}</pre>`;
 const resendTestFrom = "DesignLayer <onboarding@resend.dev>";
 
-async function sendEmail(fromAddress) {
+async function sendEmail(fromAddress, toAddress) {
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -145,7 +145,7 @@ async function sendEmail(fromAddress) {
     },
     body: JSON.stringify({
       from: fromAddress,
-      to: [notifyTo],
+      to: [toAddress],
       subject,
       text,
       html,
@@ -155,12 +155,27 @@ async function sendEmail(fromAddress) {
   return { ok: response.ok, status: response.status, body };
 }
 
-let sent = await sendEmail(from);
+function testingRecipient(body) {
+  const match = body.match(/your own email address \(([^)]+)\)/);
+  return match?.[1]?.trim() ?? "";
+}
+
+let sent = await sendEmail(from, notifyTo);
 if (!sent.ok && sent.status === 403 && sent.body.includes("domain is not verified")) {
   console.error(
     "送信元ドメインが Resend で未確認のため、確認用アドレスから送り直します。",
   );
-  sent = await sendEmail(resendTestFrom);
+  sent = await sendEmail(resendTestFrom, notifyTo);
+}
+
+if (!sent.ok) {
+  const accountEmail = testingRecipient(sent.body);
+  if (accountEmail && accountEmail !== notifyTo) {
+    console.error(
+      "ドメイン未確認のあいだは Resend の登録メールにだけ送れます。そちらへ送り直します。",
+    );
+    sent = await sendEmail(resendTestFrom, accountEmail);
+  }
 }
 
 if (!sent.ok) {
