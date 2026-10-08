@@ -1,0 +1,27 @@
+name: Validate video submission
+
+on:
+  pull_request:
+    paths:
+      - "submissions/**"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout pull request
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch the base branch
+        run: git fetch origin ${{ github.base_ref }}
+
+      - name: Install ffprobe
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Check the submission
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: node scripts/validate-video-submission.mjs
