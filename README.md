@@ -1,10 +1,29 @@
-# DesignLayer 動画の提出
+<p align="center">
+  <img src="docs/hero.jpg" alt="DesignLayer — submit a launch video" width="720">
+</p>
 
-DesignLayer の動画一覧に載せたい作品を、プルリクエストで提出するリポジトリです。
+<p align="center">
+  <em>Send a launch video with a pull request.</em>
+</p>
 
-## フォルダ
+<p align="center">
+  <a href="https://design-layer.com/en/videos/submit"><img alt="Submit on DesignLayer" src="https://img.shields.io/badge/submit-design--layer.com-1F9BE0?style=flat-square"></a>
+  <a href="https://design-layer.com/en/videos"><img alt="Watch the catalog" src="https://img.shields.io/badge/catalog-videos-4CB8F0?style=flat-square"></a>
+</p>
 
-1本につき `submissions/` の直下にフォルダを1つ作ってください。
+---
+
+This repository accepts launch videos for the [DesignLayer catalog](https://design-layer.com/en/videos). A merged pull request is a candidate for the site. A closed pull request is a rejection.
+
+The short way is the form. Sign in with GitHub at [Submit a video](https://design-layer.com/en/videos/submit), and the pull request is opened from your account. The steps below are the same submission, done by hand.
+
+<p align="center">
+  <img src="docs/catalog.png" alt="Published videos appear in the DesignLayer catalog" width="880">
+</p>
+
+## Folder
+
+Add one folder directly under `submissions/` for each video.
 
 ```text
 submissions/my-launch-video/
@@ -14,38 +33,44 @@ submissions/my-launch-video/
   logo.png
 ```
 
-フォルダ名は小文字の英数字とハイフンだけです（例: `my-launch-video`）。すでに同じ名前がある場合は使えません。
+The folder name is lowercase letters, numbers, and hyphens only (`my-launch-video`). A name that already exists cannot be reused.
 
-| ファイル | 必須 | 内容 |
+| File | Required | Contents |
 |---|---|---|
-| `video.mp4` | 必須 | MP4。16:9、60秒以内、50MB以内 |
-| `prompt.txt` | 必須 | その動画を作った指示文 |
-| `meta.json` | 必須 | タイトル、説明、投稿者名。X とサイト URL は任意 |
-| `logo.png` | 任意 | 投稿者のロゴ。PNG |
+| `video.mp4` | Yes | MP4. 16:9, up to 60 seconds, up to 50MB. |
+| `prompt.txt` | Yes | The instructions used to make the video. |
+| `meta.json` | Yes | Title, description, and author name. X and website are optional. |
+| `logo.png` | No | The author's logo, as a PNG. |
 
-`meta.json` の形:
+`meta.json`:
 
 ```json
 {
-  "title": "動画のタイトル",
-  "description": "詳細ページの説明に出す文章",
-  "authorName": "投稿者名",
+  "title": "Video title",
+  "description": "The text shown on the detail page",
+  "authorName": "Author name",
   "x": "https://x.com/example",
   "website": "https://example.com"
 }
 ```
 
-`x` と `website` は空でも書けます。書いたときだけ、公開後の動画にリンクが出ます。
+`x` and `website` can be omitted. A link appears on the published video only when the field is filled in.
 
-メールアドレスは書きません。掲載した動画は X で告知します。
+Do not include an email address. Published videos are announced on X.
 
-## 出し方
+## How to send it
 
-1. このリポジトリをフォークする
-2. 上のフォルダを追加する
-3. プルリクエストを開く
-4. 本文に、テンプレートの権利確認の文を残す
+1. Fork this repository.
+2. Add the folder above.
+3. Open a pull request.
+4. Leave the rights sentence from the pull request template in the body:
 
-審査して、マージしたものが公開対象です。閉じたものは却下です。
+   > この動画・プロンプト・ロゴの権利を自分が持っていることを確認しました。
 
-マージしたフォルダは DesignLayer の `video-submissions/<名前>/` へ移し、この公開リポジトリからは消します。移したあとの修正と削除は、サイト側のそのフォルダで扱います。動画一覧では運営の動画のあとに並び、詳細にはタイトル、説明、投稿者名、ロゴ（あるとき）が出ます。
+   That line means: I confirm that I hold the rights to this video, prompt, and logo.
+
+## After it is merged
+
+The folder is copied into DesignLayer at `video-submissions/<name>/`, then removed from this public repository. Later edits and removals happen in that site folder.
+
+On the catalog, submitted videos are listed after the official ones. The detail page shows the title, description, author name, and the logo when one was included.
