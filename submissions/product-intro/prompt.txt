@@ -1,0 +1,208 @@
+You are a motion designer. Following the spec below exactly, build a launch film rendered with the browser's Canvas 2D API, export the frames with Playwright, and encode them to MP4 with ffmpeg.
+
+0. Render contract (must follow)
+The film is a pure function of time. window.seek(t) draws frame t. Never carry state over from a previous frame.
+In export mode, do not use CSS transitions, setTimeout, or requestAnimationFrame.
+Randomness only from seeded mulberry32 (Math.random is forbidden). Wobble/jitter uses value noise (interpolated hashes).
+Video-file assets are extracted to numbered image sequences with ffmpeg; pick the frame with floor((t - start) * fps).
+Export: open a 1920×1080 page in Playwright, seek(f/60) → CDP Page.captureScreenshot → pipe the PNG into ffmpeg. Encoding settings: -c:v libx264 -preset slow -crf 16 -pix_fmt yuv420p -vf scale=out_color_matrix=bt709.
+Picture and sound timing both reference the same timeline.json (in beats). After producing the audio, measure the actual beat positions and pass them to the film as beats.js ({t0, period}).
+Review procedure: before exporting the full film, export one frame per beat, assemble them into a contact sheet, inspect it visually, and fix what you see.
+0.1 Workspace and environment (added)
+Start in a new, empty folder. Do not open or reuse any existing project folder, even one with a similar name.
+Required tools: Node.js (with Playwright + Chromium), ffmpeg/ffprobe. Python with numpy/scipy may be used for audio analysis.
+Fonts: install Inter Variable and Instrument Serif locally (e.g. from npm @fontsource-variable/inter and @fontsource/instrument-serif) and load them with FontFace.
+If assets/bg_nebula.webp is not supplied, generate it procedurally (seeded fBm noise, deep indigo → violet → lilac, sparse stars) at 1536×1024.
+1. Props (swappable values)
+type LaunchFilmProps = {
+  project: 'designlayer-mcp';
+  size: [1920, 1080]; fps: 60; bpm: 128; beats: 50;          // 50 beats = 23.44 s
+  brand: {
+    name: 'DesignLayer'; product: 'MCP'; url: 'design-layer.com/mcp';
+    // Cloud logo, drawn as strokes (stroke-width 15, round cap). viewBox="204 86 442 284"
+    logoPaths: [
+      ['#1F9BE0', 'M268 354C225 330 214 290 219 262C226 215 262 186 304 183C322 138 360 100 420 98C480 98 530 135 548 190'],
+      ['#4CB8F0', 'M266 352C245 332 238 300 245 272C254 238 285 224 318 218C352 210 364 170 405 156C460 138 520 155 546 193'],
+      ['#14B4CA', 'M270 354C266 315 285 275 330 268C380 262 390 250 430 230C475 206 520 198 560 200C600 200 628 225 630 258L632 290'],
+      ['#94A3B8', 'M278 358L560 358C600 358 632 330 632 292'],
+      ['#94A3B8', 'M302 352C302 322 325 305 360 302C420 298 470 285 500 252'],
+    ];
+  };
+  palette: {
+    black: '#000000'; white: '#FFFFFF';
+    blue: '#3D63F0'; selection: '#2F5BFF'; lilac: '#B7B0F2'; lilacText: '#C9C2FF';
+    auroraDeep: '#3326A8'; flash: ['#F4F2FF', '#B7B0F2', '#5B4BE0'];
+  };
+  fonts: {
+    sans: 'Inter Variable';        // body and UI (weight 400–600)
+    serif: 'Instrument Serif';     // emphasis words only, italic, set at 1.16× the sans size
+  };
+  copy: {
+    open: { a: 'Find it'; b: 'copy it'; keys: ['⌘F', '⌘C', '⌘V'] };
+    paste: 'Paste it. Again.';                       // only 'Paste' is serif italic
+    focus: { line: 'Your agent fetches it now.'; keep: 'Your agent fetches.'; serifWord: 'fetches' };
+    chat: {
+      placeholder: 'Ask your agent…';
+      server: 'DesignLayer MCP';
+      prompt: 'Search DesignLayer MCP for a hero section';
+      running: 'Searching the DesignLayer catalog';
+      done: 'Found 3 components';
+      tool: 'search_catalog'; query: '"hero section"';
+    };
+    lockup: 'DesignLayer'; lockupSerif: 'MCP';
+    cta: 'Add it to your editor.'; url: 'design-layer.com/mcp';
+  };
+  assets: {
+    openingBackground: 'assets/bg_nebula.webp';      // purple nebula (1536×1024), background of the first two scenes
+    chatResults: [                                    // the 3 results shown in the chat; use video where one exists
+      { id: 'kinetic-service-pricing'; src: 'catalog-previews/kinetic-service-pricing.jpg' },
+      { id: 'pin-spacer-works'; src: 'catalog-previews/pin-spacer-works.mp4'; clip: [2.0, 5.0]; fps: 30 },
+      { id: 'night-messenger-chat'; src: 'catalog-previews/night-messenger-chat.jpg' },
+    ];
+    tunnelPool: [                                     // only real, existing components go on the tunnel walls
+      'album-calendar','night-messenger-chat','liquid-glass-login','glass-sidebar-nav','floating-poster-orbit',
+      'garden-prompt-hero','space-explore-section','statue-404','japan-travel-hero','kinetic-service-pricing',
+      'golden-oracle-hero','saapro-hero','sneaker-bold-hero','ncs-sound-halo','path-drawing-portfolio-hero',
+      'music-video-pin-stack','pricing-roi-calculator','sneaker-focus-carousel','product-wordmark-hero',
+      'story-mode-expand','moonsworth-companies-grid','home-projects-stack','collections-scroll-slider','benefits-scroll-list',
+    ];
+  };
+  audio: { loudness: -18; masterLowpass: 8500 };
+};
+How to collect assets: capture each card on https://design-layer.com/ja/components with Playwright (deviceScaleFactor 2).
+
+A card's preview image is https://design-layer.com/catalog-previews/<id>.jpg; if it has a video, <id>.mp4.
+Decide whether a video exists by whether <id>.mp4 returns 404.
+2. Timeline (timeline.json, in beats; 1 beat = 0.46875 s)
+{
+  "bpm": 128, "beats": 50,
+  "dot": 0, "w1": 0.5, "w2": 1.5, "morphs": [3, 4, 5, 6], "w1Out": 7.25, "select": 8, "w2Out": 9,
+  "cp": 9.5, "didnt": 10.5,
+  "bezel": 12.5, "pastes": [12.5, 12.75, 12.95, 13.1, 13.22, 13.32, 13.4, 13.47], "scroll": 13.5, "boom": 13.75,
+  "haze": 14.25, "sharp": 17, "collapse": 18, "toDot": 18.75, "logo": 19,
+  "chat": 22, "prompt": { "text": "Search DesignLayer MCP for a hero section", "start": 22.75, "end": 25.75 },
+  "camIn": 22.4, "camOut": 25.85, "send": 26.25, "tool": 27.25, "found": 28.75,
+  "dive": 30.5, "boost": 33.5, "core": 34.75,
+  "logo2": 36, "wordType": { "text": "DesignLayer", "start": 38, "end": 39.25 }, "mcp": 39.75,
+  "lockOut": 42.5, "cta": 43.25, "url": 44.25, "fade": 47.25
+}
+3. Shared look
+Text entrance (focus reveal): 0.55 s quartOut — blur 16px → 0, horizontal slide of 12–40px, opacity 0 → 1. Exit: expoIn over 0.32 s, blurring out as it fades. Where specified, the color shifts from blue (#3D63F0) to white.
+Aurora (light leak): four elliptical gradients along the bottom edge, stacked with 'lighter' compositing.
+(95%, 104%) 980×430 #2F5BFF
+(42%, 110%) 1150×300 lilac
+(60%, 113%) 650×200 white
+(-2%, 102%) 700×360 #3326A8
+Positions drift slowly with value noise.
+Film grain: four 256px noise tiles, switched at 24 fps, overlay blending, opacity 0.05.
+Easings: quartOut / expoOut / expoIn / expoInOut / cubicInOut / backOut.
+Logo drawing: measure the 5 paths with getTotalLength() and draw them one at a time using lineDash (stagger 0.08–0.12 s, 0.7–0.85 s per path, expoInOut).
+4. Scenes
+S1 Find it | copy it (0–4.45 s)
+Background: the nebula image, slowly scaling up while drifting sideways (1.02 → 1.07×).
+
+"Find it" (sans 92px) and "copy it" (serif italic) sit side by side with a separator between them.
+The separator starts as a lilac text cursor (6px wide) blinking on the beat.
+On beats 3, 4, 5 it becomes a keycap — ⌘F → ⌘C → ⌘V (156×88, corner radius 14, lilac outline, label in sans 600 44px).
+At each change the key sinks 5px.
+The label rolls from bottom to top to swap.
+Around each change, the gap between the words widens like a breath.
+On beat 6 it returns to a cursor; between beats 6.75 and 7.1 the cursor closes. On beat 7.25 "Find it" exits.
+On beat 8 a blue selection highlight (#2F5BFF) covers all of "copy it"; on beat 9 it disappears.
+S2 Paste it. Again. (4.45–5.86 s)
+Background stays the nebula.
+
+The three words come into focus one after another (color shifting from blue to white). Only "Paste" is serif italic.
+S3 Repeated pasting → flash → haze → focus (5.86–8.9 s)
+Pasting (beats 12.5–13.5):
+Text size grows from 92 → 124px.
+Rows are added alternately above and below (line height = text size × 1.32; odd rows are offset by half a phrase, like brickwork).
+In each row the copies spread out from the center to the left and right (each step outward is delayed 0.045 s).
+A freshly pasted phrase shows the blue selection state, which fades in about 0.26 s.
+The whole screen fills with text. The nebula behind gradually darkens.
+Scroll (beats 13.5–13.75): everything streaks upward 2600px with expoIn. Apply motion blur by stacking 7 subframes.
+Flash (beat 13.75): a radial gradient — white at the center, lilac → #5B4BE0 toward the edges — fills the screen.
+Haze (beats 14.25–17): inside a grayish-purple haze, "Your agent fetches it now." starts blurred and scattered, then gathers while coming into focus; the text color goes from dark to white.
+On beat 18 "it now" disappears, leaving "Your agent fetches." On beat 18.75 the text shrinks into a white dot (7px) at the center.
+S4 Logo (8.9–10.3 s)
+Black background with aurora.
+
+From the white dot, the cloud mark is drawn in white strokes (150px tall, stroke width 17).
+After drawing finishes, hold it for about 0.35 s; during the hold, the whole thing shrinks slightly.
+S5 Chat (10.3–14.3 s)
+Black background with aurora. Lay everything out in a vertical column 1100px wide.
+
+Input box: corner radius 30, translucent.
+Placeholder "Ask your agent…".
+Below it, a "DesignLayer MCP" chip (the colored mark + a green connected dot).
+A send button at the bottom right.
+Typing: type prompt.text one character at a time (sans 40px, blinking caret).
+Camera (keyframes):
+At camIn, push in on the input box to 2.35× (expoInOut, 0.55 s).
+While typing, follow the caret slightly behind it, panning sideways. Move the caret position continuously even between characters, and lag it with a 6-sample average.
+At camOut, pull back to the original framing.
+While pushed in, the box's edge glows purple.
+When the camera moves fast, stack subframes for motion blur (1.3 frames' worth for push-in/pull-out, 0.75 frames' worth while following).
+Never stretch an enlarged bitmap — redraw at the current zoom every time.
+Send: the button sinks; the message bubble slides sideways with an afterimage trail and moves up. The input box moves down.
+Agent:
+The colored mark, plus "Searching the DesignLayer catalog" with a shimmering highlight sweeping across it.
+A tool chip search_catalog query: "hero section" (spinner while running, green check when done).
+At found, change the label to "Found 3 components".
+Results: 3 cards (330×206, corner radius 16) slide in from the right and keep drifting slowly left. Show each ID below its card. pin-spacer-works plays as video.
+S6 Tunnel (14.3–16.9 s)
+Looking down the axis from inside a cylinder. No text.
+
+dive: the chat screen blurs and scales up rapidly past the camera, revealing the depths of the tunnel (near the orb of light).
+Dimensions: focal length 700, radius 900, ring spacing 650, 22 rings.
+Panels are curved segments along the wall.
+Angular width = image aspect ratio × depth length ÷ radius, so images are never stretched.
+Do not crop images. Map each strip onto the curved surface with two affine-transformed triangles. Expand each triangle by 1.2px to hide the seams.
+Color: panels sink into dark purple (rgba(16,10,44)) the farther away they are. Border color #C9C2FF.
+Rotation: each ring rotates in the opposite direction from its neighbor, at a different speed.
+Tube center: slightly offset from screen center, shaken like a handheld camera and slightly tilted.
+Orb of light: at the far end, a glow going white → pale purple → blue-violet.
+Camera: pulls back from deep inside. Speed 0.5u + 0.5u³, accelerating toward the end; it never pulls all the way out of the tube.
+Transition (1.25 beats before logo2 → logo2 + 0.55 s):
+While still pulling back, blur the whole tube out as a single layer.
+The orb shrinks into a white dot at screen center.
+S7 Lockup → CTA (16.9 s – end)
+logo2: start overlapping before the tunnel has fully faded.
+From the white dot, a white mark (92px tall) is drawn.
+"DesignLayer" (sans 600 74px) comes into focus one letter at a time.
+Then "MCP" (serif italic, #C9C2FF).
+The aurora brightens as it drifts sideways.
+At lockOut, blur it out.
+cta: "Add it to your editor." centered (serif 104px), with "design-layer.com/mcp" below it (sans 30px, white at 55%).
+At fade, everything fades out quietly and the film ends.
+5. Sound (all synthesized in code; 128 BPM, D major family)
+Pad (the lead): one chord per bar — Dmaj9 Dmaj9 Bm9 Gmaj9 Em9 A6 Dmaj9 Bm9 Gmaj9 A6 Dmaj9 Bm9 Gmaj9 Em9. Five slow-attack sawtooth voices, softened with a lowpass filter.
+Opening:
+A pluck on each of the two words.
+A key-press sound plus a small pluck every time the keycap changes.
+On selection, a click and a short whoosh.
+Pasting: a key press plus a short blip that rises in pitch with each paste. An upward whoosh for the scroll. A soft impact hit at the flash.
+Haze: a low chord and a slow, heartbeat-like sub-bass. A bell when the focus lands.
+Logo: a bell arpeggio.
+Chat:
+A key press per character.
+Whooshes on camera push-in and pull-out.
+A click on send and a sideways whoosh.
+A glittering shimmer while searching; three pops as the results appear.
+Tunnel: a restrained groove (kick, clap, hi-hat, bass). A small whoosh each time a ring passes. A riser and a short snare roll before the transition. An impact hit just before the transition.
+Lockup: a bell, a key press for each letter, a chord of bells on MCP, low end plus a bell on the CTA.
+Mix (keep it calm, not loud):
+Levels relative to the pad: whoosh 0.4, impact hit 0.5, click 0.4, key press 0.45, pop 0.45, clap 0.4, hi-hat 0.35, kick 0.6, bass 0.7, chord stab 0.55, sub-bass 0.35, pluck 0.65, riser 0.6. No shaker.
+Reverb 2.4 s, send 0.11. An 8.5 kHz lowpass on the master.
+Finally, normalize with two-pass loudnorm to -18 LUFS / True Peak -1 dB.
+6. Done checklist
+未完了
+In the per-beat contact sheet, all six criteria score 8 or higher: hook in the first 2 seconds, readability on a phone, motion quality, amount of variation, brand fit, sync with the sound.
+未完了
+The tunnel shows only real, existing components, and no image is cropped.
+未完了
+Text stays sharp in the zoomed-in shots. No visible strip banding or triangle seams.
+未完了
+Measured beat positions are within ±25 ms.
+未完了
+Length is 23.44 s and the file size is about 30 MB.
